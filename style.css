@@ -96,6 +96,39 @@ html, body {
     font-weight: bold;
 }
 
+.realtime-like-indicator {
+    position: absolute;
+    top: 80px; /* Below user-info */
+    left: 20px;
+    background: rgba(255, 77, 77, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    transform: translateY(20px);
+    opacity: 0;
+}
+
+.realtime-like-indicator.visible {
+    animation: slide-in-fade 0.5s ease-out forwards;
+}
+
+.realtime-like-indicator svg {
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    fill: white;
+    stroke: white;
+}
+
 .like-button {
     position: fixed;
     top: 20px;
@@ -168,4 +201,11 @@ html, body {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+@keyframes slide-in-fade {
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }

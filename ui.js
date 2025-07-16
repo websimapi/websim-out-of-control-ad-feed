@@ -1,7 +1,7 @@
 const feedContainer = document.getElementById('feed-container');
 const loadingIndicator = document.getElementById('loading');
 
-export function createFeedItemElement(user, project, parentContainer = feedContainer) {
+export function createFeedItemElement(user, project, parentContainer = feedContainer, fromBroadcast = false, liker = null) {
     const itemContent = document.createElement('div');
     itemContent.className = 'feed-item-content';
 
@@ -63,20 +63,42 @@ export function createFeedItemElement(user, project, parentContainer = feedConta
         userInfo.appendChild(userProfileLink);
         itemContent.appendChild(userInfo);
     }
+    
+    if (fromBroadcast && liker) {
+        const realtimeIndicator = document.createElement('div');
+        realtimeIndicator.className = 'realtime-like-indicator';
+        realtimeIndicator.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-heart"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg> Liked by @${liker.username}`;
+        itemContent.appendChild(realtimeIndicator);
+    }
 
-    parentContainer.appendChild(containerElement);
+    if (fromBroadcast) {
+        parentContainer.prepend(containerElement);
+    } else {
+        parentContainer.appendChild(containerElement);
+    }
     return itemContent;
 }
 
 export function updateFeedItem(item, prompt, imageUrl, itemData = null) {
     if (itemData) {
         item.dataset.itemData = JSON.stringify(itemData);
+        // Also add a direct ID for easier querying
+        item.parentElement.dataset.itemId = itemData.id;
     }
     const promptInfo = item.querySelector('.prompt-info');
     if (imageUrl) {
         const img = new Image();
         img.onload = () => {
             item.style.backgroundImage = `url(${imageUrl})`;
+
+            const realtimeIndicator = item.querySelector('.realtime-like-indicator');
+            if(realtimeIndicator) {
+                // Animate it in after the image loads
+                setTimeout(() => {
+                    realtimeIndicator.classList.add('visible');
+                }, 200);
+            }
+
             if (promptInfo && prompt) {
                 promptInfo.dataset.fullText = prompt;
                 // Reset state for recycled elements

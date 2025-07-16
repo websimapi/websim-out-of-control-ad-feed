@@ -4,6 +4,7 @@ import { createFeedItemElement, updateFeedItem, hideLoading, showLoading, showFi
 const feedContainer = document.getElementById('feed-container');
 const likedFeedContainer = document.getElementById('liked-feed-container');
 const likeButton = document.getElementById('like-button');
+const room = new WebsimSocket();
 
 const MIN_AHEAD_BUFFER = 7;
 const BATCH_SIZE = 10;
@@ -76,6 +77,20 @@ function likeCurrentItem() {
         likedItems.push(itemData);
         likeButton.classList.add('liked');
         console.log('Liked:', itemData.prompt);
+
+        // Broadcast the like to other users
+        if (room && room.clientId && user) {
+            console.log("Broadcasting like to other users.");
+            room.send({
+                type: 'new_like',
+                itemData: itemData,
+                liker: {
+                    username: user.username,
+                    avatarUrl: user.avatar_url
+                },
+                echo: false // Don't send it back to myself
+            });
+        }
     }
     saveLikedItems();
 }
@@ -151,6 +166,34 @@ function toggleLikedFeed(event) {
     setTimeout(updateLikeButtonState, 100);
 }
 
+// --- Realtime Item Handling ---
+
+async function createAndPrependItemFromBroadcast(eventData) {
+    const { itemData, liker } = eventData;
+
+    // Avoid adding duplicates if the item is already in the feed
+    if (document.querySelector(`[data-item-id="${itemData.id}"]`)) {
+        console.log("Skipping duplicate real-time item:", itemData.id);
+        return;
+    }
+    
+    // Also add to our own local likedItems so it shows up in our liked feed later
+    if (!isItemLiked(itemData)) {
+        likedItems.push(itemData);
+        saveLikedItems();
+    }
+
+    console.log(`Received a new like from @${liker.username}. Prepending to feed.`);
+
+    const author = itemData.type === 'project' ? itemData.project.created_by : itemData.user;
+    const project = itemData.type === 'project' ? itemData.project : null;
+    
+    const itemElement = createFeedItemElement(author, project, feedContainer, true, liker);
+    updateFeedItem(itemElement, itemData.prompt, itemData.imageUrl, itemData);
+
+    // Adjust scroll position to keep the user on their current item
+    feedContainer.scrollTop += window.innerHeight;
+}
 
 async function fetchAndQueueItems() {
     if (isFetching) return;
@@ -271,6 +314,7 @@ async function createAndAppendItem() {
             imageUrl,
             project: { // Only store necessary info to avoid large localstorage
                 id: project.id,
+                title: project.title,
                 created_by: {
                     username: author.username,
                     avatar_url: author.avatar_url
@@ -309,6 +353,15 @@ async function main() {
     likeButton.addEventListener('contextmenu', toggleLikedFeed);
 
     try {
+        await room.initialize();
+        console.log("Realtime connection established.");
+
+        room.onmessage = (event) => {
+            if (event.data.type === 'new_like') {
+                createAndPrependItemFromBroadcast(event.data);
+            }
+        };
+
         user = await websim.getUser();
         if (user) {
             showLoading(`Building your targeted ad feed, @${user.username}...`);
